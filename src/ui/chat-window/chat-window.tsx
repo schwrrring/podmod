@@ -1,7 +1,7 @@
 import data from "../dummy-data.js";
 import * as React from "react";
 import * as styles from "./chat-window.css";
-import { PerformanceScrollView, AddNewItemsTo } from "performance-scroll-view";
+import { PerformanceScrollView, AddNewItemsTo } from "../performance-scroll-view/performance-scroll-view";
 import { ChatBubble, ChatBubbleProperties } from "../chat-bubble/chat-bubble";
 import { Script } from "../../interfaces/script";
 import { activeDing } from "../ding/ding";
@@ -17,6 +17,8 @@ interface ChatWindowProps {
     elements?: JSX.Element[];
     currentTime: number;
     playDings: boolean;
+    playStateChange: () => void
+
 }
 
 function easeOutBack(t: number, b: number, c: number, d: number, s: number = 0) {
@@ -27,11 +29,11 @@ function easeOutBack(t: number, b: number, c: number, d: number, s: number = 0) 
 }
 
 function newMessageGenerator(numberOfMessages: number) {
-    let messagesText = numberOfMessages > 1 ? "messages" : "message";
+    let messagesText = numberOfMessages > 1 ? "neue Nachrichten" : "neue Nachricht";
 
     return (
         <div className={styles.moreMessages}>
-            &#8595;&nbsp;&nbsp;{numberOfMessages}&nbsp;&nbsp;new {messagesText}
+            &#8595;&nbsp;&nbsp;{numberOfMessages}&nbsp;&nbsp;{messagesText}
         </div>
     );
 }
@@ -43,11 +45,15 @@ export class ChatWindow extends React.Component<ChatWindowProps, ChatWindowState
         super(props);
 
         this.generateItem = this.generateItem.bind(this);
+        this.refreshScrollViewSize = this.refreshScrollViewSize.bind(this);
+        (window as any).refreshPosition = () =>{ return this.refreshScrollViewSize()};
 
         this.state = {
             numberOfVisibleItems: 0,
             alreadySentScrollEvent: false
         };
+
+        (window as any).refresh = ()=>{this.refreshScrollViewSize()}
     }
 
     generateItem(indexes: number[]) {
@@ -68,6 +74,7 @@ export class ChatWindow extends React.Component<ChatWindowProps, ChatWindowState
             // if we don't have a script yet, ignore
             return;
         }
+
         if (activeDing) {
             activeDing.shouldPlayDings = newProps.playDings;
         }
@@ -111,7 +118,7 @@ export class ChatWindow extends React.Component<ChatWindowProps, ChatWindowState
 
     render() {
         let innerView: JSX.Element | null = null;
-        let avatar: JSX.Element | null = null;
+
 
         if (this.state.numberOfVisibleItems > 0 && this.props.script) {
             // We only create the view when we have items, that way we avoid the initial items
@@ -131,17 +138,6 @@ export class ChatWindow extends React.Component<ChatWindowProps, ChatWindowState
                 />
             );
 
-            avatar = (
-                <div
-                    className={styles.avatar}
-                    style={{
-                        backgroundImage: `url(${this.props.script.baseURL +
-                            this.props.script.metadata.avatarFile})`
-                    }}
-                >
-                    <div className={styles.avatarInner} />
-                </div>
-            );
         }
 
         let touchMoveListen: ((Event) => void) = e => e.stopPropagation();
@@ -167,7 +163,6 @@ export class ChatWindow extends React.Component<ChatWindowProps, ChatWindowState
                 onTouchMove={touchMoveListen}
             >
                 {innerView}
-                {avatar}
             </div>
         );
     }

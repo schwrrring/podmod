@@ -1,26 +1,25 @@
 import * as styles from "./frame.css";
-import { ChatWindow } from "../chat-window/chat-window";
+import {ChatWindow} from "../chat-window/chat-window";
 import * as React from "react";
-import { runServiceWorkerCommand, ServiceWorkerNotSupportedError } from "service-worker-command-bridge";
-import { CacheSyncRequest, CacheSyncResponse } from "../../interfaces/cache-sync-request";
 // import { Waveform } from "../waveform/waveform";
-import { Progress } from "../progress/progress";
-import { Controls } from "../controls/controls";
-import { Header } from "../header/header";
-import { Script, mapScriptEntries, makeRelative } from "../../interfaces/script";
-import { sendEvent } from "../../util/analytics";
-import { StartButton } from "../start-button/start-button";
-import { ProgressSlider } from "../progress-slider/progress-slider";
-import { SideMenu } from "../side-menu/side-menu";
-import { BottomSlider } from "../bottom-slider/bottom-slider";
-import { Ding, activeDing } from "../ding/ding";
-import { BottomInfo } from "../bottom-info/bottom-info";
-import { fontsLoaded } from "../../util/fonts";
-import { TimeFormatter } from "../time-formatter/time-formatter";
-import { NotificationRequestResult } from "../../interfaces/notification";
-import { setNotificationEnableState, getNotificationEnableState } from "../../util/notification-dispatch";
-import { ContactBox, setShowOrHideFunction } from "../contact-box/contact-box";
-import { NotificationPermissionBox } from "../notification-permission-box/notification-permission-box";
+import {Progress} from "../progress/progress";
+import {Controls} from "../controls/controls";
+import {Header} from "../header/header";
+import {Script, mapScriptEntries, makeRelative} from "../../interfaces/script";
+import {sendEvent} from "../../util/analytics";
+import {StartButton} from "../start-button/start-button";
+import {ProgressSlider} from "../progress-slider/progress-slider";
+import {SideMenu} from "../side-menu/side-menu";
+import {BottomSlider} from "../bottom-slider/bottom-slider";
+import {Ding, activeDing} from "../ding/ding";
+import {BottomInfo} from "../bottom-info/bottom-info";
+import {fontsLoaded} from "../../util/fonts";
+import {TimeFormatter} from "../time-formatter/time-formatter";
+import {NotificationRequestResult} from "../../interfaces/notification";
+import {setNotificationEnableState, getNotificationEnableState} from "../../util/notification-dispatch";
+import {ContactBox, setShowOrHideFunction} from "../contact-box/contact-box";
+import {NotificationPermissionBox} from "../notification-permission-box/notification-permission-box";
+import FrameContext from '../../contexts/frame-context'
 
 declare var FontFaceSet: any;
 
@@ -50,6 +49,7 @@ interface PlayerState {
     buffering: boolean;
     showContactWindow?: string;
     notificationPermission?: "granted" | "denied" | "default";
+    hideControls?: boolean;
 }
 
 interface PlayerProps {
@@ -67,13 +67,23 @@ export class Frame extends React.Component<PlayerProps, PlayerState> {
             bottomSliderExpanded: false,
             showNotifications: false,
             downloadOffline: false,
-            buffering: false
+            buffering: false,
+            hideControls: false
         };
         this.timeUpdate = this.timeUpdate.bind(this);
         this.playStateChange = this.playStateChange.bind(this);
         this.audioProgress = this.audioProgress.bind(this);
         this.toggleContactWindow = this.toggleContactWindow.bind(this);
+        this.toggleControls = this.toggleControls.bind(this);
         this.audioError = this.audioError.bind(this);
+        this.pause = this.pause.bind(this);
+        this.play = this.play.bind(this);
+    }
+
+    toggleControls() {
+        this.setState(prevState => ({
+            hideControls: !prevState.hideControls
+        }))
     }
 
     async loadData() {
@@ -82,7 +92,6 @@ export class Frame extends React.Component<PlayerProps, PlayerState> {
         async function loadAndTransformData() {
             let response = await fetch(absoluteURL.href);
             let json = (await response.json()) as Script;
-
             json.audioFile = makeRelative(json.audioFile, absoluteURL.href);
             json.baseURL = new URL(".", absoluteURL.href).href;
             json.assets = json.assets.map(url => makeRelative(url, absoluteURL.href));
@@ -93,6 +102,7 @@ export class Frame extends React.Component<PlayerProps, PlayerState> {
 
         Promise.all([loadAndTransformData(), fontsLoaded]).then(async ([json]) => {
             let cacheName = json.podcastId + "_" + json.episodeId;
+            this.contextValues.cacheName = json.podcastId + "_" + json.episodeId;
 
             // If the cache already exists then we know we've at least attempted
             // to cache the podcast before now.
@@ -142,11 +152,30 @@ export class Frame extends React.Component<PlayerProps, PlayerState> {
         // source.load();
     }
 
+    contextValues = {
+        pausex: () => {
+            if (this.state.playState == PlayState.Playing) {
+                this.pause();
+            } else {
+                this.play();
+            }
+        },
+        toggleControls: () => this.toggleControls(),
+        canPlay: undefined as any,
+        canPause: undefined as any,
+        cacheName: undefined as any
+
+    }
+
     render() {
+
+        this.contextValues.canPlay = this.state.playState == PlayState.Paused;
+        this.contextValues.canPause = this.state.playState == PlayState.Playing;
         let loadedPercent = 0;
         let playbackPercent = 0;
         let duration = 0;
         let currentPosition = 0;
+        console.log("currenPosition:" );
         if (this.state.download) {
             loadedPercent = this.state.download.current / this.state.download.total;
         }
@@ -189,6 +218,10 @@ export class Frame extends React.Component<PlayerProps, PlayerState> {
         if (this.state.script) {
             duration = this.state.script.metadata.length;
 
+            dingElement = (
+                <Ding audioURL={this.state.script.dingFile} getMainAudioElement={() => this.audioElement}/>
+            );
+
             audio = (
                 <audio
                     // src={this.state.script.audioFile}
@@ -202,25 +235,22 @@ export class Frame extends React.Component<PlayerProps, PlayerState> {
                     onTimeUpdate={this.timeUpdate}
                     onPlay={this.playStateChange}
                     onPause={this.playStateChange}
-                    onWaiting={() => this.setState({ buffering: true })}
+                    onWaiting={() => this.setState({buffering: true})}
                     // onPlaying={() => this.setState({ buffering: false })}
                     onError={this.audioError}
                     onAbort={() => console.warn("abort!")}
                     // onEnded={() => console.warn("ended!")}
                     // onStalled={() => console.warn("stalled!")}
-                    onLoadStart={() => this.setState({ buffering: true })}
-                    onCanPlayThrough={() => this.setState({ buffering: false })}
+                    onLoadStart={() => this.setState({buffering: true})}
+                    onCanPlayThrough={() => this.setState({buffering: false})}
                     title={this.state.currentChapterName}
-                    style={{ position: "absolute", zIndex: 100 }}
+                    style={{position: "absolute", zIndex: 100}}
                     ref={el => (this.audioElement = el as HTMLAudioElement)}
                 >
-                    <source src={this.state.script.audioFile} />
+                    <source src={this.state.script.audioFile}/>
                 </audio>
             );
 
-            dingElement = (
-                <Ding audioURL={this.state.script.dingFile} getMainAudioElement={() => this.audioElement} />
-            );
 
             chapterMarks = this.state.script.chapters.map(c => c.time);
         }
@@ -230,100 +260,109 @@ export class Frame extends React.Component<PlayerProps, PlayerState> {
         // (this.state.playState === PlayState.Paused && this.state.playback.current === 0);
 
         return (
-            <div className={styles.frame} onTouchMove={e => e.preventDefault()}>
-                {audio}
-                {dingElement}
-                <Header
-                    metadata={this.state.script ? this.state.script.metadata : undefined}
-                    showExpanded={isInitialView}
-                />
-                <ChatWindow
-                    script={this.state.script}
-                    currentTime={this.state.playback ? this.state.playback.current : 0}
-                    elements={this.state.scriptElements}
-                    ref={el => (this.chatWindow = el)}
-                    playDings={this.state.playback ? !this.state.playback.manuallyScrubbed : true}
-                />
-                <BottomSlider
-                    className={styles.controls}
-                    bottomElement={
-                        <BottomInfo
-                            offlineDownloadEnabled={this.state.downloadOffline}
-                            offlineDownloadChange={newValue => this.setState({ downloadOffline: newValue })}
-                            script={this.state.script}
-                            alertsEnabled={this.state.showNotifications}
-                            onAlertChange={newSetting => this.setNotificationSetting(newSetting)}
-                        />
-                    }
-                    expanded={this.state.bottomSliderExpanded}
-                >
-                    <ProgressSlider
-                        length={duration}
-                        currentPosition={currentPosition}
-                        chapters={chapterMarks}
-                        onSliderChange={newTime => this.setTime(newTime, false)}
+            <FrameContext.Provider value={this.contextValues}>
+                <div className={styles.frame} onTouchMove={e => e.preventDefault()}>
+                    {audio}
+                    {dingElement}
+                    <Header
+                        metadata={this.state.script ? this.state.script.metadata : undefined}
+                        showExpanded={isInitialView}
                     />
-                    <div className={styles.timeAndChapter}>
-                        <TimeFormatter
-                            time={this.state.playback ? this.state.playback.current : 0}
-                            className={styles.timeBlock}
+                    <ChatWindow
+                        script={this.state.script}
+                        currentTime={this.state.playback ? this.state.playback.current : 0}
+                        elements={this.state.scriptElements}
+                        ref={el => (this.chatWindow = el)}
+                        playDings={this.state.playback ? !this.state.playback.manuallyScrubbed : true}
+                        playStateChange={this.playStateChange}
+
+                    />
+
+
+                    {!this.state.hideControls &&
+                    <BottomSlider
+                        className={styles.controls}
+                        bottomElement={
+                            <BottomInfo
+                                offlineDownloadEnabled={this.state.downloadOffline}
+                                offlineDownloadChange={newValue => this.setState({downloadOffline: newValue})}
+                                script={this.state.script}
+                                alertsEnabled={this.state.showNotifications}
+                                onAlertChange={newSetting => this.setNotificationSetting(newSetting)}
+                            />
+                        }
+                        expanded={this.state.bottomSliderExpanded}
+                    >
+                        <ProgressSlider
+                            length={duration}
+                            currentPosition={currentPosition}
+                            chapters={chapterMarks}
+                            onSliderChange={newTime => this.setTime(newTime, false)}
                         />
-                        <div className={styles.currentChapterName}>
-                            {this.state.buffering ? "Buffering..." : this.state.currentChapterName}
+                        <div className={styles.timeAndChapter}>
+                            <TimeFormatter
+                                time={this.state.playback ? this.state.playback.current : 0}
+                                className={styles.timeBlock}
+                            />
+                            <div className={styles.currentChapterName}>
+                                {this.state.buffering ? "Buffering..." : this.state.currentChapterName}
+                            </div>
+                            <TimeFormatter
+                                time={
+                                    this.state.playback
+                                        ? this.state.playback.total - this.state.playback.current
+                                        : undefined
+                                }
+                                className={styles.timeBlock + " " + styles.timeLeft}
+                            />
                         </div>
-                        <TimeFormatter
-                            time={
-                                this.state.playback
-                                    ? this.state.playback.total - this.state.playback.current
-                                    : undefined
-                            }
-                            className={styles.timeBlock + " " + styles.timeLeft}
+                        <Controls
+                            onPlay={() => {
+                                sendEvent("Web browser", "Play");
+                                this.play();
+                            }}
+                            onPause={() => {
+                                sendEvent("Web browser", "Pause");
+                                this.pause();
+                            }}
+                            onRewind={() => {
+                                sendEvent("Web browser", "15 seconds backwards");
+                                this.setTime(-15, true);
+                            }}
+                            onFastForward={() => {
+                                sendEvent("Web browser", "15 seconds forward");
+                                this.setTime(15, true);
+                            }}
+                            onSkipBack={() => this.moveChapter(-1)}
+                            onSkipForward={() => this.moveChapter(1)}
+                            canPlay={this.state.playState == PlayState.Paused}
+                            canPause={this.state.playState == PlayState.Playing}
+                            onBottomToggle={() => {
+                                sendEvent(
+                                    "Web browser",
+                                    this.state.bottomSliderExpanded ? "Close episode menu" : "Open episode menu"
+                                );
+                                this.setState({bottomSliderExpanded: !this.state.bottomSliderExpanded});
+                            }}
                         />
-                    </div>
-                    <Controls
-                        onPlay={() => {
-                            sendEvent("Web browser", "Play");
-                            this.play();
-                        }}
-                        onPause={() => {
-                            sendEvent("Web browser", "Pause");
-                            this.pause();
-                        }}
-                        onRewind={() => {
-                            sendEvent("Web browser", "15 seconds backwards");
-                            this.setTime(-15, true);
-                        }}
-                        onFastForward={() => {
-                            sendEvent("Web browser", "15 seconds forward");
-                            this.setTime(15, true);
-                        }}
-                        onSkipBack={() => this.moveChapter(-1)}
-                        onSkipForward={() => this.moveChapter(1)}
-                        canPlay={this.state.playState == PlayState.Paused}
-                        canPause={this.state.playState == PlayState.Playing}
-                        onBottomToggle={() => {
-                            sendEvent(
-                                "Web browser",
-                                this.state.bottomSliderExpanded ? "Close episode menu" : "Open episode menu"
-                            );
-                            this.setState({ bottomSliderExpanded: !this.state.bottomSliderExpanded });
-                        }}
+                        <StartButton
+                            display={isInitialView}
+                            onPlay={show => this.playWithNotificationSetting(show)}
+                            onNotificationPermissionChange={() => {
+                            }}
+                        />
+                    </BottomSlider>
+                    }
+                    {contactBox}
+                    <SideMenu
+                        script={this.state.script}
+                        toggleContactBox={this.toggleContactWindow}
+                        isPlaying={this.state.playback !== undefined}
+                        scriptURL={this.props.scriptURL}
                     />
-                    <StartButton
-                        display={isInitialView}
-                        onPlay={show => this.playWithNotificationSetting(show)}
-                        onNotificationPermissionChange={() => {}}
-                    />
-                </BottomSlider>
-                {contactBox}
-                <SideMenu
-                    script={this.state.script}
-                    toggleContactBox={this.toggleContactWindow}
-                    isPlaying={this.state.playback !== undefined}
-                    scriptURL={this.props.scriptURL}
-                />
-                {permissionWarning}
-            </div>
+                    {permissionWarning}
+                </div>
+            </FrameContext.Provider>
         );
     }
 
@@ -447,7 +486,7 @@ export class Frame extends React.Component<PlayerProps, PlayerState> {
             return;
         }
 
-        let notificationPermission = await (navigator as any).permissions.query({ name: "notifications" });
+        let notificationPermission = await (navigator as any).permissions.query({name: "notifications"});
         console.info("PERMISSIONS: existing notification permission is", notificationPermission.state);
         this.setState({
             notificationPermission: notificationPermission.state
@@ -514,7 +553,7 @@ export class Frame extends React.Component<PlayerProps, PlayerState> {
         console.info(e, e.target.buffered.start(0), e.target.buffered.end(0));
     }
 
-    playStateChange(e) {
+    playStateChange() {
         this.setState({
             playState: this.audioElement.paused ? PlayState.Paused : PlayState.Playing
         });
@@ -555,9 +594,9 @@ export class Frame extends React.Component<PlayerProps, PlayerState> {
 
         mediaSession.metadata = new MediaMetadata({
             title: this.state.currentChapterName,
-            artist: "The Guardian",
+            artist: "N-Joy",
             album: this.state.script.metadata.title,
-            artwork: [{ src: this.state.script.metadata.artwork, sizes: "3001x3001", type: "image/jpg" }]
+            artwork: [{src: this.state.script.metadata.artwork, sizes: "3001x3001", type: "image/jpg"}]
         });
     }
 }

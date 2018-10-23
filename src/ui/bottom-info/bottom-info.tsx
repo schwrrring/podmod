@@ -80,7 +80,7 @@ export class BottomInfo extends React.Component<BottomInfoProps, BottomInfoState
                         this.props.onAlertChange(!this.props.alertsEnabled);
                     }}
                 >
-                    <span className={getCheckedClassName(this.props.alertsEnabled)} />Show Alerts
+                    <span className={getCheckedClassName(this.props.alertsEnabled)} />Push-Nachrichten anzeigen
                 </button>
             );
         }

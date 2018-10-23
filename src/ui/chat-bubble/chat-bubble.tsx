@@ -1,16 +1,15 @@
 import * as styles from "./chat-bubble.css";
 import * as React from "react";
-import { Component } from "react";
-import { getPhotoSwipeContainer, PhotoSwipe } from "../photoswipe/photoswipe";
-import { runServiceWorkerCommand } from "service-worker-command-bridge";
-import { Chapter, makeRelative } from "../../interfaces/script";
-import { showOrHideContactBox } from "../contact-box/contact-box";
-import { showOrHideSideMenu } from "../side-menu/side-menu";
-import { sendEvent } from "../../util/analytics";
-
-export enum BubbleType {
-    text = "text"
-}
+import {Component} from "react";
+import {getPhotoSwipeContainer, PhotoSwipe} from "../photoswipe/photoswipe";
+import {Chapter, makeRelative} from "../../interfaces/script";
+import {showOrHideContactBox} from "../contact-box/contact-box";
+import {showOrHideSideMenu} from "../side-menu/side-menu";
+import {sendEvent} from "../../util/analytics";
+import {PollUserChoice} from "../poll-user-choice/poll-user-choice";
+import {PollUserTextinput} from "../poll-user-textinput/poll-user-textinput";
+import FrameContext from "../../contexts/frame-context"
+import ScrollViewItemContext from "../performance-scroll-view/scroll-view-item-context";
 
 export interface ChatBubbleImage {
     url: string;
@@ -18,6 +17,23 @@ export interface ChatBubbleImage {
     height: number;
     caption: string;
     video?: boolean;
+}
+
+export interface ChatBubblePollProperties {
+    question: string;
+    choices: string[];
+    followUp?: string;
+    pollID: string;
+    activateAnswerBubble?: (string) => void;
+
+}
+
+
+export interface ChatBubblePollState {
+    pollSent: boolean;
+    databaseRefs: any[];
+    value: any;
+    showInputButtons: boolean;
 }
 
 export interface ChatBubbleLink {
@@ -28,19 +44,46 @@ export interface ChatBubbleLink {
     specialAction?: string;
 }
 
+export interface ChatBubblePollInt {
+    question: string;
+    choices: string[];
+    followUp: string;
+    pollID: string;
+    showResults: boolean;
+}
+
+export interface OpenQuestion {
+    question: string;
+    followUp: string;
+    pollID: string;
+    showResults: boolean;
+}
+
 export interface ChatBubbleProperties {
     text?: string;
+    className?: string;
     time: number;
     images?: ChatBubbleImage[];
     link?: ChatBubbleLink;
     chapterIndicator?: Chapter;
     silent?: boolean;
     notificationOnlyText?: string;
+    multipleChoice?: ChatBubblePollInt;
+    type?:  string;
+    openQuestion?: OpenQuestion;
+    projectId?: string;
+    userInput?: string;
+    onInputChange?: any;
+    isUserChatBubble?: boolean; // TODO: implement als ersatz fuer den is Activted filter, der bestimmt, ob die bubble nach rehts oder nicht nach rechts rutscht.
+
 }
 
 interface ChatBubbleState {
     touched: boolean;
     expanded: boolean;
+    pollSent: number;
+    chatBubbleClassName: string;
+    parentClassChanged?: boolean;
 }
 
 function setExpandedState(target: ChatBubble, toValue: boolean) {
@@ -54,7 +97,7 @@ function renderImage(bindTo: ChatBubble) {
         return null;
     }
 
-    let { width, height } = bindTo.props.images[0];
+    let {width, height} = bindTo.props.images[0];
 
     let containerStyles: React.CSSProperties = {
         paddingTop: height / width * 100 + "%",
@@ -80,7 +123,7 @@ function renderImage(bindTo: ChatBubble) {
                 return {
                     html: `<video src="${image.url}" class="${
                         styles.expandedVideo
-                    }" playsinline autoplay muted/>`,
+                        }" playsinline autoplay controls/>`,
                     title: image.caption || ""
                 };
             }
@@ -95,7 +138,7 @@ function renderImage(bindTo: ChatBubble) {
             };
         });
 
-        gallery = <PhotoSwipe items={items} onClose={() => setExpandedState(bindTo, false)} />;
+        gallery = <PhotoSwipe items={items} onClose={() => setExpandedState(bindTo, false)}/>;
     }
 
     let img: JSX.Element;
@@ -104,17 +147,18 @@ function renderImage(bindTo: ChatBubble) {
             <video
                 src={bindTo.props.images[0].url}
                 style={imageStyles}
-                autoPlay={true}
-                muted={true}
+                autoPlay={false}
+                muted={false}
                 playsInline={true}
+                controls={true}
             />
         );
     } else {
-        img = <img src={bindTo.props.images[0].url} style={imageStyles} />;
+        img = <img src={bindTo.props.images[0].url} style={imageStyles}/>;
     }
 
     return (
-        <div key="image" style={{ maxHeight: "60vh" }} className={styles.bubbleImageContainer}>
+        <div key="imaged" style={{maxHeight: "60vh"}} className={styles.bubbleImageContainer}>
             <div
                 style={containerStyles}
                 onClick={() => {
@@ -142,6 +186,55 @@ function renderText(bindTo: ChatBubble) {
     );
 }
 
+function renderOpenQuestion(bindTo: ChatBubble) {
+    if (!bindTo.props.openQuestion) {
+        return null
+    }
+    return (
+
+        <ScrollViewItemContext.Consumer key={"userTextInput"}>
+            {viewItemContext =>
+                <FrameContext.Consumer>
+                    {frame =>
+                        <PollUserTextinput
+                            question={bindTo.props!.openQuestion!.question}
+                            followUp={bindTo.props!.openQuestion!.followUp}
+                            pollID={bindTo.props!.openQuestion!.pollID}
+                            onResize={viewItemContext.onResize}
+                            frameFunctions={frame}
+                            key={"userTextInput"}
+                            userInput={bindTo.props.userInput}
+                            onInputChange={bindTo.props.onInputChange}
+                        />
+                    }
+                </FrameContext.Consumer>}
+        </ScrollViewItemContext.Consumer>
+    )
+}
+
+function renderMultipleChoice(bindTo: ChatBubble) {
+    if (!bindTo.props.multipleChoice) {
+        return null
+    }
+    return (
+        <ScrollViewItemContext.Consumer key={"openQuestion"}>
+            {viewItemContext =>
+                <PollUserChoice
+                    question={bindTo.props!.multipleChoice!.question}
+                    choices={bindTo.props!.multipleChoice!.choices}
+                    followUp={bindTo.props!.multipleChoice!.followUp}
+                    pollID={bindTo.props!.multipleChoice!.pollID}
+                    showResults={bindTo.props!.multipleChoice!.showResults}
+                    onResize={viewItemContext.onResize!}
+                    key={"multipleChoice"}
+                    changeBubbleClass={bindTo.changeClassName}
+                    parentClassChanged={bindTo.state.parentClassChanged}
+                />}
+        </ScrollViewItemContext.Consumer>
+    )
+
+}
+
 function renderLink(props: ChatBubbleProperties) {
     if (!props.link) {
         return null;
@@ -161,7 +254,7 @@ function renderLink(props: ChatBubbleProperties) {
     if (props.link.specialAction === "open-side-menu") {
         return (
             <div
-                key="link"
+                key="link2"
                 onClick={showOrHideSideMenu}
                 className={styles.bubbleText + " " + styles.bubbleLink}
             >
@@ -180,7 +273,7 @@ function renderLink(props: ChatBubbleProperties) {
             onClick={() => {
                 sendEvent("Web Browser", "Link Click", props.link!.url);
             }}
-            key="link"
+            key="link3"
             target="_blank"
             className={styles.bubbleText + " " + styles.bubbleLink}
             href={props.link.url}
@@ -198,7 +291,7 @@ function renderChapterIndicator(chapter: Chapter | undefined) {
     return (
         <div key={"chapter-indicator"}>
             <div className={styles.chapterIndicatorText}>{chapter.name}</div>
-            <div className={styles.chapterIndicatorLine} />
+            <div className={styles.chapterIndicatorLine}/>
         </div>
     );
 }
@@ -212,14 +305,29 @@ export class ChatBubble extends Component<ChatBubbleProperties, ChatBubbleState>
         this.setTouch = this.setTouch.bind(this);
         this.state = {
             touched: false,
-            expanded: false
+            expanded: false,
+            pollSent: 0,
+            chatBubbleClassName: 'bubble',
+            parentClassChanged: false
         };
         this.maybeOpenPhotoSwipe = this.maybeOpenPhotoSwipe.bind(this);
         this.maybeClosePhotoSwipe = this.maybeClosePhotoSwipe.bind(this);
+        this.changeClassName = this.changeClassName.bind(this);
+    }
+
+    changeClassName(className: string) {
+        this.setState({
+            chatBubbleClassName: className,
+            parentClassChanged: true
+        })
+
     }
 
     render() {
-        let className = styles.bubble;
+        let className = styles[this.state.chatBubbleClassName];
+        if (this.props.className) {
+            className = this.props.className;
+        }
 
         if (this.props.chapterIndicator) {
             className = styles.chapterIndicator;
@@ -237,17 +345,32 @@ export class ChatBubble extends Component<ChatBubbleProperties, ChatBubbleState>
             renderChapterIndicator(this.props.chapterIndicator),
             renderImage(this),
             renderText(this),
-            renderLink(this.props)
+            renderLink(this.props),
+            renderOpenQuestion(this),
+            renderMultipleChoice(this),
         ];
 
         if (elements.some(el => el !== null) === false) {
             return null;
         }
 
-        let containerClassName = styles.bubbleContainer;
+        let containerClassName = styles.bubbleContainerLeft;
 
         if (this.props.link) {
             containerClassName += " " + styles.linkContainer;
+        }
+
+
+        if (this.props.openQuestion) {
+            containerClassName = styles.pollContainer;
+            return (
+                <div className={containerClassName} ref={el => (this.containerElement = el)} >
+                    <div className={className} id={'scrollWrapper'} onTouchStart={this.setTouch}
+                         onTouchEnd={this.setTouch}>
+                        {elements}
+                    </div>
+                </div>
+            );
         }
 
         return (
@@ -317,9 +440,9 @@ export class ChatBubble extends Component<ChatBubbleProperties, ChatBubbleState>
 
     setTouch(e: React.TouchEvent<HTMLDivElement>) {
         if (e.type === "touchstart") {
-            this.setState({ touched: true });
+            this.setState({touched: true});
         } else {
-            this.setState({ touched: false });
+            this.setState({touched: false});
         }
     }
 }

@@ -50,7 +50,7 @@
     pointer-events: auto;
     z-index: 3;
     background: transparent;
-    background-image: url('data:image/svg+xml;utf8,<svg width="70" height="48" viewBox="0 0 70 48" xmlns="http://www.w3.org/2000/svg"><title>menu-button</title><g fill="%23000" fill-rule="evenodd"><path d="M0 0h72v8H0zM0 20h72v8H0zM0 40h72v8H0z"/></g></svg>');
+    background-image: url('data:image/svg+xml;utf8,<svg width="70" height="48" viewBox="0 0 70 48" xmlns="http://www.w3.org/2000/svg"><title>menu-button</title><g fill="white" fill-rule="evenodd"><path d="M0 0h72v8H0zM0 20h72v8H0zM0 40h72v8H0z"/></g></svg>');
     background-size: 100% 100%;
     background-repeat: no-repeat;
     border: none;

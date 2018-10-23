@@ -77,8 +77,9 @@ export class SideMenu extends React.Component<SideMenuProps, SideMenuState> {
                 );
             });
         }
-
+        if(!this.props.script){return null}
         return (
+
             <div
                 className={containerStyles}
                 onClick={() => this.setState({ opened: false })}
@@ -101,31 +102,31 @@ export class SideMenu extends React.Component<SideMenuProps, SideMenuState> {
                     <div className={styles.scroller}>
                         {this.renderEpisodeDetails()}
                         {this.renderEpisodeNavigator()}
-                        <h4>Ask Mona a Data Question</h4>
+
+                        <h4>Ihr Feedback zum neuen PodcastPlus-Player:</h4>
+                        <p>
+                            Top oder flop? Was halten Sie von unserem neuen Podcast-Player?
+                        </p>
+                        <a
+                            target="_blank"
+                            href= {this.props.script!.metadata.surveyUrl}
+                            className={styles.subscribeButton}
+                            onClick={() => sendEvent("Web browser", "Take survey", "Podcast menu")}
+                        >
+                            Zur kurzen Umfrage
+                        </a>
+                        <h4>{this.props.script!.metadata.contactHeader}</h4>
                         <button
                             className={styles.subscribeButton}
                             onClick={() => this.props.toggleContactBox("Podcast menu")}
                         >
-                            Ask now
+                            Jetzt fragen
                         </button>
-                        <h4>Give Feedback</h4>
-                        <p>
-                            Read about this experimental format here. We want to know what you think about the
-                            show.
-                        </p>
-                        <a
-                            target="_blank"
-                            href="https://goo.gl/forms/LO6GvPYWRfvR9rpv2"
-                            className={styles.subscribeButton}
-                            onClick={() => sendEvent("Web browser", "Take survey", "Podcast menu")}
-                        >
-                            Take a quick survey
-                        </a>
-                        <h4>The Team</h4>
-                        <ul className={styles.theTeam}>{teamMembers}</ul>
+                        {/*<h4>The Team</h4>*/}
+                        {/*<ul className={styles.theTeam}>{teamMembers}</ul>*/}
                         <p className={styles.contactUs}>
-                            Contact us:{" "}
-                            <a href="mailto:innovationlab@theguardian.com">innovationlab@theguardian.com</a>
+                            Schreiben Sie uns:{" "}
+                            <a href="mailto:podcastPlus@ndr.de">podcastPlus@ndr.de</a>
                         </p>
                     </div>
                 </div>
@@ -150,9 +151,9 @@ export class SideMenu extends React.Component<SideMenuProps, SideMenuState> {
         let label: string;
 
         if (this.state.subscribed === SubscribeState.Subscribed) {
-            label = "Unsubscribe from episode alerts";
+            label = "Die Korrespondenten nicht mehr abonnieren";
         } else if (this.state.subscribed === SubscribeState.Unsubscribed) {
-            label = "Subscribe to new episodes";
+            label = "Die Korrespondenten abonnieren";
         } else {
             label = "Working...";
         }
@@ -187,7 +188,7 @@ export class SideMenu extends React.Component<SideMenuProps, SideMenuState> {
 
         return (
             <div>
-                <h4>Episodes</h4>
+                <h4>Episoden</h4>
                 <ul className={styles.episodeList}>
                     {episodes.map(episode => {
                         let className = styles.episodeEntry;

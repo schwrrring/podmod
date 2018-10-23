@@ -19,7 +19,7 @@ export async function subscribe(topicName: string) {
                     events: {
                         onclick: [
                             {
-                                command: "clients.focus"
+                                command: "client.focus"
                             },
                             {
                                 command: "notification.close"
@@ -35,6 +35,38 @@ export async function subscribe(topicName: string) {
         }
     });
 }
+//
+// export async function message(topicName: string, message: string) {
+//     await runServiceWorkerCommand<SubscribeOptions, any>("send-message", {
+//         topic: topicName,
+//         confirmationPayload: {
+//             __workerCommandPayload: {
+//                 command: "notification.show",
+//                 options: {
+//                     title: "You are subscribed",
+//                     body: message,
+//                     events: {
+//                         onclick: [
+//                             {
+//                                 command: "client.focus"
+//                             },
+//                             {
+//                                 command: "notification.close"
+//                             }
+//                         ]
+//                     }
+//                 }
+//             }
+//         },
+//         confirmationIOS: {
+//             title: "__",
+//             body: "__"
+//         }
+//     });
+// }
+
+// This is how a message can be send: *malte
+// message('mona_podcast', 'Es ist so fucking einfach!!! Und das ist geil!')
 
 export async function unsubscribe(topicName: string) {
     await runServiceWorkerCommand<UnsubscribeOptions, any>("push-unsubscribe", {

@@ -9,8 +9,8 @@ if (ANALYTICS_ID) {
 export function sendEvent(
     category: string,
     action: string = "",
-    label: string = "",
-    value: number | undefined = undefined
+    label: string | null = "",
+    value: number  | undefined = undefined
 ) {
     let toSend = {
         t: "event",
@@ -45,3 +45,4 @@ export function sendPageView(url: string, title?: string) {
 
     Analytics(toSend);
 }
+

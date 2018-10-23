@@ -38,7 +38,7 @@ export function StartButton(props: StartButtonProps) {
                         requestPermission(props.onNotificationPermissionChange);
                     }}
                 >
-                    Play with push alerts
+                    Play – Mit Push-Nachrichten
                 </button>
                 <button
                     onClick={() => {
@@ -46,7 +46,7 @@ export function StartButton(props: StartButtonProps) {
                         props.onPlay(false);
                     }}
                 >
-                    Play without push alerts
+                    Play – Ohne Push-Nachrichten
                 </button>
             </div>
         );

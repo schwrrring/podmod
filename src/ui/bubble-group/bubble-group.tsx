@@ -4,6 +4,7 @@ import { makeRelative } from "../../interfaces/script";
 import { sendNotification, removeNotification } from "../../util/notification-dispatch";
 import { activeDing } from "../ding/ding";
 import { sendEvent } from "../../util/analytics";
+import {ReactElement} from "react";
 
 const ALWAYS_SHOW_NOTIFICATIONS =
     process.env.NODE_ENV === "development" && window.location.href.indexOf("alwaysShow=1") > -1;
@@ -35,16 +36,22 @@ export class BubbleGroup extends React.Component<BubbleGroupProperties, BubbleGr
     }
 
     render() {
-        return this.props.children;
+
+        const childWithProp = React.Children.map(this.props.children, (child) => {
+            return React.cloneElement( child as ReactElement<any>);
+        });
+
+        return childWithProp;
     }
 
     componentDidMount() {
         if (this.props.silent === false) {
+            console.log('hier kommt das active Ding', activeDing );
             activeDing!.ding();
         }
 
         if (this.props.notification) {
-            sendEvent("Web browser", "Shows", this.props.notification.body);
+            sendEvent("Web browser", "Shows", this.props.notification.body as string);
         }
 
         if (

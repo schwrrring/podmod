@@ -47,6 +47,21 @@
             }
         },
         {
+            "silent": false,
+            "time": 146,
+            "type": "text",
+            "poll": {
+                "question": "Please configure a firebase database in order to use multiple Choice Questions",
+                "choices": [
+                    "Yes",
+                    "No"
+                ],
+                "followUp": "Thank's for your answer! This is how other user think about the topic: ",
+                "pollID": "multipleChoice",
+                "showResults": 1
+            }
+        },
+        {
             "time": 21,
             "type": "text",
             "text": "This is a photo of Manhattan.",
@@ -57,6 +72,19 @@
                     "height": 426
                 }
             ]
+        },
+        ,
+        {
+            "silent": false,
+            "time": 543,
+            "type": "text",
+            "openQuestion": {
+                "question": "",
+                "followUp": "Thanks for your Answer!",
+                "pollID": "openQuestion1",
+                "showResults": null
+            }
         }
+
     ]
 }

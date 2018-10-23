@@ -1,0 +1,27 @@
+
+.poll-user-choice-padding {
+    padding: 10px 15px;
+}
+
+.user-input-area {
+    resize: none;
+    outline: none;
+    font-size: 16px;
+    font-family: NDRSansRegular,sans-serif;
+    border: none;
+    width: 100%;
+    max-height: 90px;
+}
+
+.bubble-poll-buttons {
+    font-size: 20px;
+}
+
+.bubble-poll-buttons-container {
+    text-align: right;
+}
+
+.user-choice-container{
+    text-align: right;
+    margin-left: auto;
+}

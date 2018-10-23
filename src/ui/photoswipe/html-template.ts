@@ -1,3 +1,4 @@
+
 export default `
 <div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
 
